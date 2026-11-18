@@ -12,13 +12,15 @@ app.get("/health", (req, res) => {
 app.get("/books", (req, res) => {
   res.status(200).json({ msg: "succ from  book" });
 });
-if (ENV.NODE_ENV == "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+if (process.env.NODE_ENV === "production") {
+  const frontendPath = path.resolve("frontend/dist");
+
+  app.use(express.static(frontendPath));
+
   app.get("/{*any}", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+    res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
-
 
 
 const startServer = async () => {
