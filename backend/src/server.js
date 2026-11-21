@@ -1,10 +1,13 @@
 import express from "express";
 import path from "path";
 import cors from "cors";
+import {clerkMiddleware} from '@clerk/express'
 import {serve} from "inngest/express";
 import {inngest,functions} from "./lib/inngest.js";
 import { ENV } from "./lib/env.js";
 import { connectDB } from "./lib/db.js";
+import { protectRoute } from "./middleware/protectRoute.js";
+import chatRoutes from"./routes/chatRoutes.js"
 const app = express();
 const __dirname = path.resolve();
 const PORT = process.env.PORT || 5000;
@@ -14,15 +17,14 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 // 
 app.use(cors({origin:ENV.CLIENT_URL,credentials:true}));
+// app.use(clerkMiddleware())
 //inngest
 app.use("/api/inngest",serve({client:inngest,functions}));
-
+app.use("/api/chat",chatRoutes)
 app.get("/health", (req, res) => {
   res.status(200).json({ msg: "succ from  api" });
 });
-app.get("/books", (req, res) => {
-  res.status(200).json({ msg: "succ from  book" });
-});
+
 if (process.env.NODE_ENV === "production") {
   const frontendPath = path.resolve("frontend/dist");
 

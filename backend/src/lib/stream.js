@@ -1,4 +1,3 @@
-
 import { StreamClient } from "@stream-io/node-sdk";
 import { ENV } from "./env.js";
 
@@ -8,7 +7,6 @@ const apiSecret = ENV.STREAM_API_SECRET;
 if (!apiKey || !apiSecret) {
   throw new Error("Stream API key or secret is missing");
 }
-
 export const streamClient = new StreamClient(
   apiKey,
   apiSecret
