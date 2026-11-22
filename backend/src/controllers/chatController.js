@@ -1,16 +1,14 @@
-import { streamClient } from "../lib/stream.js";
+import { streamClient, upsertStreamUser } from "../lib/stream.js";
 
 export async function getStreamToken(req, res) {
-  try {
-    const token = streamClient.generateUserToken({ user_id: req.user.clerkId });
-    res.status(200).json({
-      token,
-      userId: req.user.clerkId,
-      userName: req.user.name,
-      userImage: req.user.image,
-    });
-  } catch (error) {
-    console.log("Error in getStreamToken controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+  const { clerkId, name, profileImage } = req.user;
+  await upsertStreamUser({ id: clerkId, name, image: profileImage });
+  res.set("Cache-Control", "no-store");
+  res.json({
+    apiKey: streamClient.apiKey,
+    token: streamClient.generateUserToken({ user_id: clerkId }),
+    userId: clerkId,
+    userName: name,
+    userImage: profileImage,
+  });
 }

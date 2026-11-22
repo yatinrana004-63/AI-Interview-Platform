@@ -1,10 +1,13 @@
+import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
-dotenv.config();
-
+dotenv.config({
+  path: fileURLToPath(new URL("../../.env", import.meta.url)),
+  quiet: true,
+});
 
 export const ENV = {
-    PORT: process.env.PORT,
+  PORT: process.env.PORT,
   DB_URL: process.env.DB_URL,
   NODE_ENV: process.env.NODE_ENV,
   CLIENT_URL: process.env.CLIENT_URL,
@@ -12,5 +15,8 @@ export const ENV = {
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
   STREAM_API_KEY: process.env.STREAM_API_KEY,
   STREAM_API_SECRET: process.env.STREAM_API_SECRET,
-  
+  JDOODLE_CLIENT_ID: process.env.JDOODLE_CLIENT_ID,
+  JDOODLE_CLIENT_SECRET: process.env.JDOODLE_CLIENT_SECRET,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
 };
