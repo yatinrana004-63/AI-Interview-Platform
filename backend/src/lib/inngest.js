@@ -1,104 +1,55 @@
-
 import { Inngest } from "inngest";
-import { connectDB } from "./db.js";
 import User from "../models/User.js";
+import { deleteStreamUser, upsertStreamUser } from "./stream.js";
+import { getProfile, saveUser } from "./userProfile.js";
 
-import {
-  upsertStreamUser,
-  deleteStreamUser,
-} from "./stream.js";
+export const inngest = new Inngest({ id: "talent-iq" });
 
-export const inngest = new Inngest({
-  id: "talent-iq",
-});
-
-// SYNC USER TO MONGODB AND STREAM
 const syncUser = inngest.createFunction(
-  { id: "sync-user" },
-  { event: "clerk/user.created" },
-
+  { id: "sync-user", concurrency: { limit: 1, key: "event.data.id" } },
+  [{ event: "clerk/user.created" }, { event: "clerk/user.updated" }],
   async ({ event, step }) => {
-    const {
-      id,
-      email_addresses,
-      primary_email_address_id,
-      first_name,
-      last_name,
-      image_url,
-    } = event.data;
+    const data = event.data;
+    const email = data.email_addresses?.find(
+      (address) => address.id === data.primary_email_address_id,
+    )?.email_address ?? data.email_addresses?.[0]?.email_address;
 
-    const primaryEmail = email_addresses?.find(
-      (email) => email.id === primary_email_address_id
-    );
+    if (!data.id || !email) throw new Error("Missing Clerk ID or email");
 
-    const email =
-      primaryEmail?.email_address ??
-      email_addresses?.[0]?.email_address;
-
-    if (!id || !email) {
-      throw new Error("Missing Clerk ID or email");
-    }
-
-    const newUser = {
-      clerkId: id,
+    const profile = getProfile({
+      id: data.id,
       email,
-      name: `${first_name || ""} ${last_name || ""}`.trim(),
-      profileImage: image_url || "",
-    };
+      firstName: data.first_name,
+      lastName: data.last_name,
+      username: data.username,
+      image: data.image_url,
+    });
 
-    // STEP 1: Save or update MongoDB user
     await step.run("sync-mongodb-user", async () => {
-      await connectDB();
-
-      await User.findOneAndUpdate(
-        { clerkId: id },
-        { $set: newUser },
-        {
-          upsert: true,
-          runValidators: true,
-        }
-      );
-
-      console.log("MongoDB user synced:", id);
+      await saveUser(profile);
     });
 
-    // STEP 2: Save or update Stream user
     await step.run("sync-stream-user", async () => {
-      await upsertStreamUser({
-        id,
-        name: newUser.name,
-        image: newUser.profileImage,
-      });
-
-      console.log("Stream user synced:", id);
+      await upsertStreamUser({ id: data.id, name: profile.name, image: profile.profileImage });
     });
-  }
+  },
 );
 
-// DELETE USER FROM BOTH SERVICES
 const deleteUserFromDB = inngest.createFunction(
   { id: "delete-user-from-db" },
   { event: "clerk/user.deleted" },
-
   async ({ event, step }) => {
     const { id } = event.data;
-
-    if (!id) {
-      throw new Error("Missing Clerk user ID");
-    }
+    if (!id) throw new Error("Missing Clerk user ID");
 
     await step.run("delete-mongodb-user", async () => {
-      await connectDB();
       await User.deleteOne({ clerkId: id });
     });
 
     await step.run("delete-stream-user", async () => {
       await deleteStreamUser(id);
     });
-  }
+  },
 );
 
-export const functions = [
-  syncUser,
-  deleteUserFromDB,
-];
+export const functions = [syncUser, deleteUserFromDB];
